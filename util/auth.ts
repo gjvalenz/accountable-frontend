@@ -32,11 +32,23 @@ export async function auth_post(uri: string, data: object)
     })
 }
 
-export async function plain_get(uri: string)
+export async function auth_post_form(uri: string, data: any)
 {
     const token = context()
+    console.log(token)
     if(!token)
         return Promise.reject();
+    return fetch(backend_request(uri), {
+        method: 'POST',
+        body: data,
+        headers: {
+            'Authorization': 'Bearer ' + token,
+        }
+    })
+}
+
+export async function plain_get(uri: string)
+{
     return fetch(backend_request(uri))
 }
 
@@ -48,5 +60,13 @@ export async function plain_post(uri: string, data: object)
         headers: {
             'Content-type': 'application/json; charset=UTF-8',
         }
+    })
+}
+
+export async function plain_post_form(uri: string, data: any)
+{
+    return fetch(backend_request(uri), {
+        method: 'POST',
+        body: data,
     })
 }
