@@ -341,14 +341,14 @@ const MessageDisplay = ({ messageInfo, onClick, userData }: { messageInfo: any, 
 const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
   const [ messageContent, setMessageContent ] = useState('')
   const [ messages, setMessages ] = useState<any[]>([context.messages[context.messages.length-1]])
+  const [ mostRecentId, setMostRecentId ] = useState<number>(context.messages[context.messages.length-1].id)
   const [ mostPastId, setMostPastId ] = useState<number>(context.messages[context.messages.length-1].id)
-  let recentMessages = [context.messages[context.messages.length-1]]
-  let mostRecentId = context.messages[context.messages.length-1].id
   const updateMessages = async () => {
     const res = await auth_get(`/Messages/subscribeAfter/${ mostRecentId }`)
     const newMessages = await res.json()
     if(newMessages.length > 0)
     {
+      /*
       console.log('---message subscribe update---')
       console.log(recentMessages)
       recentMessages = [...recentMessages, ...newMessages]
@@ -356,6 +356,9 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
       console.log('---done---')
       mostRecentId = recentMessages[recentMessages.length - 1].id
       setMessages(recentMessages)
+      */
+      setMostRecentId(newMessages[newMessages.length-1].id)
+      setMessages((old) => [...old, ...newMessages])
     }
   }
   const sendMessage = async (id: number) => {
@@ -363,21 +366,25 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
     data.append('Content', messageContent)
     data.append('ToUserId', id.toString())
     const res = await auth_post_form(`/Messages/post`, data)
+    const msg = await res.json()
     if(res.ok)
     {
       setMessageContent('')
-      console.log('---updating messages after post---')
-      console.log(recentMessages)
-      updateMessages()
-      console.log(recentMessages)
-      console.log('---done---')
+      setMostRecentId(msg.id)
+      setMessages((msgs) => [...msgs, msg])
+      //console.log('---updating messages after post---')
+      //console.log(recentMessages)
+      // updateMessages()
+      //console.log(recentMessages)
+      //console.log('---done---')
     }
   }
   const loadSpecificMessages = async () => {
-    const res = await auth_get(`/Messages/${ context.userId }/${ mostPastId }/150`)
+    const res = await auth_get(`/Messages/${ context.userId }/${ mostPastId }/10`) // change this to 150
     const data = await res.json()
     if(data.length > 0)
     {
+      /*
       const pastId = data[0].id
       console.log('loading specific info')
       console.log(recentMessages)
@@ -385,21 +392,26 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
       console.log(recentMessages)
       console.log('---done---')
       setMessages(recentMessages)
-      setMostPastId(pastId)
+      setMostPastId(pastId)*/
+      setMostPastId(data[0].id)
+      setMessages((old) => [...data, ...old])
     }
   }
   useEffect(() => {
     loadSpecificMessages()
-    setInterval(() => {
+    let interval = setInterval(() => {
       updateMessages()
-    }, 50000)
-  }, [])
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [mostRecentId])
   return (
     <>
+        <button onClick={() => loadSpecificMessages()}>Load more dms</button>
         {messages.map(m => <p>{ m.userId == userData.id ? userData.name : context.username }:{(new Buffer(m.content, 'base64')).toString('utf8')}</p>)}
         New Message:
         <input type='text' value={messageContent} onChange={e => setMessageContent(e.target.value)} />
         <button onClick={() => sendMessage(context.userId)}>Message</button>
+        Recent ID: {mostRecentId}
     </>
   )
 }
