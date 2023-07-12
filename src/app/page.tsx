@@ -77,7 +77,7 @@ const Register = ({ setToken }: { setToken: (s: string) => void }) => {
         <option value='f'>Female</option>
         <option value='n'>Non-Binary</option>
       </select>
-      Profile Pic: <input type='file' onChange={(e) => e.target.files? setImage(e.target.files[0]) : null} />
+      Profile Pic: <input type='file' onChange={(e) => e.target.files? setImage(e.target.files[0]) : null} required/>
       <button onClick={() => attempt_register()}>submit</button>
       {error && <p>Error: {error}</p>}
     </div>
