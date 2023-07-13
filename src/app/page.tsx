@@ -437,41 +437,41 @@ const Messages = ({ userData } : { userData: any }) => {
   )
 }
 
-const Notifications = () => {
+const NotificationsUpdater = ({ notifications, updateNotifsParent } : { notifications: any[], updateNotifsParent: (n: any[]) => void }) => {
   const BACKOFF = 1000
   const INTERVAL = 2000
   let timeToNext = 0
   let fails = 0
-  let ns: any[] = []
-  const [ notifications, setNotifications ] = useState<any[]>([])
   const [ tm, setTm ] = useState('')
-  const fetchNotifs = async () => {
+  const [ mostRecentId, setMostRecentId ] = useState<number>(notifications[0].id)
+  const updateNotifs = async () => {
     setTm(new Date(Date.now()).toTimeString())
-    const res = await auth_get('/Notifications/all')
+    const res = await auth_get(`/Notifications/subscribeAfter/${mostRecentId}`)
     const notifs = await res.json()
-    if(JSON.stringify(notifs) != JSON.stringify(ns)) {
+    if(notifs.length > 0)
+    {
       fails = 0
-      setNotifications([...notifs])
-      ns = [...notifs]
+      setMostRecentId(notifs[0].id)
+      const msg_froms = notifs.filter((n: any) => n.kind == "Message").map((n: any) => n.fromUserId)
+      const updated_notifs = [...notifs, ...(notifications.filter(n => !(msg_froms.includes(n.fromUserId) && n.kind == "Message"))) ]
+      updateNotifsParent(updated_notifs)
     }
-    else {
+    else
+    {
       fails++
     }
   }
   const raf = async (time: number) => {
     if(timeToNext <= time) {
-      await fetchNotifs()
+      await updateNotifs()
       timeToNext = Math.min(time + INTERVAL + fails * BACKOFF, time + INTERVAL + 30000)
     }
     requestAnimationFrame(raf)
   }
   useEffect(() => {
-    requestAnimationFrame(raf)
-  }, [])
-  const readAllNotifications = async () => {
-    const res = await auth_get('/Notifications/readAll')
-    // const json = await res.json()
-  }
+    let handle_id = requestAnimationFrame(raf)
+    return () => cancelAnimationFrame(handle_id)
+  }, [mostRecentId])
   const formatContent = (kind: string, content: string) => {
     if(kind == "CommentSub")
     {
@@ -493,6 +493,7 @@ const Notifications = () => {
   return (
     <>
       <p>Last updated: {tm}</p>
+      <p>Recent ID: {mostRecentId}</p>
       { notifications.map(({ id, kind, content, timeSent, keyTo, fromUsername, fromUserId, fromProfilePicture, read }: { id: number, kind: string, content: string, timeSent: string, keyTo: number, fromUsername: string, fromUserId: number, fromProfilePicture: string|undefined, read: boolean }) =>
       <div>
         <p>Notification ID: {id}</p>
@@ -505,9 +506,33 @@ const Notifications = () => {
         <p>From: {fromUserId}</p>
         <p>Read: {read ? 'true' : 'false'}</p>
       </div>)}
-      <button onClick={() => readAllNotifications()}>Mark Read</button>
     </>
   )
+}
+
+const Notifications = () => {
+  const [ notifications, setNotifications ] = useState<any[]>([])
+  const fetchNotifs = async () => {
+    const res = await auth_get('/Notifications/all')
+    const notifs = await res.json()
+    if (notifs.length > 0)
+    {
+      setNotifications([...notifs])
+    }
+  }
+  const readAllNotifications = async () => {
+    const res = await auth_get('/Notifications/readAll')
+    // const json = await res.json()
+  }
+  useEffect(() => {
+    fetchNotifs()
+  }, [])
+  console.log(notifications)
+  return (
+  <>
+    { notifications.length > 0 && <NotificationsUpdater notifications={notifications} updateNotifsParent={(notifs) => setNotifications(notifs)} /> }
+    <button onClick={() => readAllNotifications()}>Read All</button>
+  </>)
 }
 
 const photoToSmall = (photo_url: string) => (
@@ -610,17 +635,31 @@ const UserList = ({ auth } : {auth: boolean}) => {
 export default function Home() {
   const [ token, setToken ] = useState('')
   const [ userData, setUserData ] = useState({})
+  const [ loaded, setLoaded ] = useState(false)
   useEffect(()=>{
     (async function(){
       if(context())
       {
         setToken(context()!)
         const res = await auth_get('/Account/')
-        const json = await res.json()
-        setUserData(json)
+        if(!res.ok)
+        {
+          setToken('')
+          if(typeof window !== "undefined") {
+            localStorage.removeItem('token')
+          }
+        }
+        else
+        {
+          const json = await res.json()
+          setUserData(json)
+        }
       }
-    })();
-  }, [token]);
+      setLoaded(true)
+    })()
+  }, [])
+  if (!loaded)
+    return (<>Loading...</>);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       {!token && 
