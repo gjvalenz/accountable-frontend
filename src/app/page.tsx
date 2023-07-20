@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useState } from 'react'
 import context from './context'
 import { auth_post, auth_post_form, auth_get, plain_get, plain_post, plain_post_form } from '../../util/auth'
 
-const empty_profile_pic = 'https://i.ibb.co/VHWWb2s/cropped.jpg'
+const empty_profile_pic = 'https://i.ibb.co/VHWWb2s/cropped.jpg' // use this for default in app
 
 const Login = ({ setToken }: { setToken: (s: string) => void }) => {
   const [ email, setEmail ] = useState('')
