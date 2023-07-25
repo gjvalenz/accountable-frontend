@@ -465,12 +465,13 @@ const Messages = ({ userData } : { userData: any }) => {
   )
 }
 
-const NotificationsUpdater = ({ notifications, updateNotifsParent } : { notifications: any[], updateNotifsParent: (n: any[]) => void }) => {
+const NotificationsUpdater = ({ nnotifications } : { nnotifications: any[] }) => {
   const BACKOFF = 1000
   const INTERVAL = 2000
   let timeToNext = 0
   let fails = 0
   const [ tm, setTm ] = useState('')
+  const [ notifications, setNotifications ] = useState<any[]>(nnotifications) 
   const [ mostRecentId, setMostRecentId ] = useState<number>(notifications[0].id)
   const updateNotifs = async () => {
     setTm(new Date(Date.now()).toTimeString())
@@ -478,15 +479,15 @@ const NotificationsUpdater = ({ notifications, updateNotifsParent } : { notifica
     const notifs = await res.json()
     if(notifs.length > 0)
     {
-      fails = 0
-      setMostRecentId(notifs[0].id)
+      //fails = 0
       const msg_froms = notifs.filter((n: any) => n.kind == "Message").map((n: any) => n.fromUserId)
       const updated_notifs = [...notifs, ...(notifications.filter(n => !(msg_froms.includes(n.fromUserId) && n.kind == "Message"))) ]
-      updateNotifsParent(updated_notifs)
+      setMostRecentId(notifs[0].id)
+      setNotifications(updated_notifs)
     }
     else
     {
-      fails++
+      //fails++
     }
   }
   const raf = async (time: number) => {
@@ -497,9 +498,10 @@ const NotificationsUpdater = ({ notifications, updateNotifsParent } : { notifica
     requestAnimationFrame(raf)
   }
   useEffect(() => {
-    let handle_id = requestAnimationFrame(raf)
-    return () => cancelAnimationFrame(handle_id)
-  })
+    const int_id = setInterval(() => { updateNotifs() }, 5000)
+    //let handle_id = requestAnimationFrame(raf)
+    return () => clearInterval(int_id)
+  }, [mostRecentId])
   const formatContent = (kind: string, content: string) => {
     if(kind == "CommentSub")
     {
@@ -552,18 +554,12 @@ const Notifications = () => {
     const res = await auth_get('/Notifications/readAll')
     // const json = await res.json()
   }
-  const updateNotifications = (new_notifs: any) => {
-    //let n = [...new_notifs, ...notifications]
-    //const msg_froms = notifications.filter((n: any) => n.kind == "Message").map((n: any) => n.fromUserId)
-    //const updated_notifs = [...notifs, ...(notifications.filter(n => !(msg_froms.includes(n.fromUserId) && n.kind == "Message"))) ]
-    setNotifications((old_notifs: any) => [...new_notifs, ...old_notifs])
-  }
   useEffect(() => {
     fetchNotifs()
   }, [])
   return (
   <>
-    { notifications.length > 0 && <NotificationsUpdater notifications={notifications} updateNotifsParent={(notifs) => updateNotifications(notifs)} /> }
+    { notifications.length > 0 && <NotificationsUpdater nnotifications={notifications} /> }
     <button onClick={() => readAllNotifications()}>Read All</button>
   </>)
 }
