@@ -338,6 +338,29 @@ const MessageDisplay = ({ messageInfo, onClick, userData }: { messageInfo: any, 
   </div>)
 }
 
+const UpdateMessages = ({ updateMessages, updateRecentId, recentId } : {  updateMessages: (nms: any) => void, updateRecentId: (nId: any) => void, recentId: any }) => {
+  const updateMessagesHere = async () => {
+    const res = await auth_get(`/Messages/subscribeAfter/${ recentId }`)
+    const newMessages = await res.json()
+    if(newMessages.length > 0)
+    {
+      const updated_id = newMessages[newMessages.length-1].id
+      if(updated_id > recentId)
+      {
+        updateRecentId(newMessages[newMessages.length-1].id)
+        updateMessages(newMessages)
+      }
+    }
+  }
+  useEffect(() => {
+    let interval = setInterval(() => {
+      updateMessagesHere()
+    }, 5000)
+    return () => clearInterval(interval)
+  })
+  return (<></>)
+}
+
 const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
   const [ messageContent, setMessageContent ] = useState('')
   const [ messages, setMessages ] = useState<any[]>([context.messages[context.messages.length-1]])
@@ -361,6 +384,10 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
       setMessages((old) => [...old, ...newMessages])
     }
   }
+  const internalUpdateMessages = (new_msgs: any) =>
+  {
+    setMessages((old) => [...old, ...new_msgs])
+  } 
   const sendMessage = async (id: number) => {
     let data = new FormData()
     data.append('Content', messageContent)
@@ -399,11 +426,11 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
   }
   useEffect(() => {
     loadSpecificMessages()
-    let interval = setInterval(() => {
+    /*let interval = setInterval(() => {
       updateMessages()
     }, 5000)
-    return () => clearInterval(interval)
-  }, [mostRecentId])
+    return () => clearInterval(interval)*/
+  })//[mostRecentId])
   return (
     <>
         <button onClick={() => loadSpecificMessages()}>Load more dms</button>
@@ -412,6 +439,7 @@ const Dialogue = ({ context, userData } : { context: any, userData: any }) => {
         <input type='text' value={messageContent} onChange={e => setMessageContent(e.target.value)} />
         <button onClick={() => sendMessage(context.userId)}>Message</button>
         Recent ID: {mostRecentId}
+        <UpdateMessages updateMessages={(new_msgs: any) => internalUpdateMessages(new_msgs)} updateRecentId={(id: any) => setMostRecentId(id)} recentId={mostRecentId} />
     </>
   )
 }
@@ -471,7 +499,7 @@ const NotificationsUpdater = ({ notifications, updateNotifsParent } : { notifica
   useEffect(() => {
     let handle_id = requestAnimationFrame(raf)
     return () => cancelAnimationFrame(handle_id)
-  }, [mostRecentId])
+  })
   const formatContent = (kind: string, content: string) => {
     if(kind == "CommentSub")
     {
@@ -524,13 +552,18 @@ const Notifications = () => {
     const res = await auth_get('/Notifications/readAll')
     // const json = await res.json()
   }
+  const updateNotifications = (new_notifs: any) => {
+    //let n = [...new_notifs, ...notifications]
+    //const msg_froms = notifications.filter((n: any) => n.kind == "Message").map((n: any) => n.fromUserId)
+    //const updated_notifs = [...notifs, ...(notifications.filter(n => !(msg_froms.includes(n.fromUserId) && n.kind == "Message"))) ]
+    setNotifications((old_notifs: any) => [...new_notifs, ...old_notifs])
+  }
   useEffect(() => {
     fetchNotifs()
   }, [])
-  console.log(notifications)
   return (
   <>
-    { notifications.length > 0 && <NotificationsUpdater notifications={notifications} updateNotifsParent={(notifs) => setNotifications(notifs)} /> }
+    { notifications.length > 0 && <NotificationsUpdater notifications={notifications} updateNotifsParent={(notifs) => updateNotifications(notifs)} /> }
     <button onClick={() => readAllNotifications()}>Read All</button>
   </>)
 }
